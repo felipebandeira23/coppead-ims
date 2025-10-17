@@ -1,1 +1,39 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ${PROJECT_NAME}-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: ${TZ}
+    ports:
+      - "3306:3306"   # em produção, prefira não expor
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u${MYSQL_USER} -p${MYSQL_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ${PROJECT_NAME}-api
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - ./.env
+      - ./backend/.env
+    ports:
+      - "${API_PORT}:8000"
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
